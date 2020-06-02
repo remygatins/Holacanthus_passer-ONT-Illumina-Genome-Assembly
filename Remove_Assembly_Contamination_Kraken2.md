@@ -71,7 +71,7 @@ hash.k2d  library  opts.k2d  seqid2taxid.map  taxo.k2d  taxonomy
 Run Kraken
 ----------
 
-start interactive slurm session
+start interactive slurm session  
 \*but you can also run this in your slurm script
 
     srun -N 1 -n 10 -p 128x24 --mem=4000MB -t 01:00:00 --pty bash
