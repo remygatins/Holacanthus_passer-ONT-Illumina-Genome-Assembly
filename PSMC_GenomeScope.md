@@ -107,7 +107,7 @@ samtools sort -o HPA_bwa_aligned_sorted.bam -O BAM -@ 20 HPA_bwa_aligned.bam
 Finally, index your sorted bam file:
 
 ``` bash
-samtools index -b -@ 20 HPA_04_bwa_aligned_sorted.bam  
+samtools index -b -@ 20 HPA_bwa_aligned_sorted.bam  
 ```
 
 #### 2\. Call diploid genome and covert to psmc file
@@ -121,7 +121,7 @@ reads using bcftools. \*DeLeonLab– NOTE: I installed bcftools within the
 samtools conda environment on the chimera server
 
 ``` bash
-bcftools mpileup -C50 -Ou --threads 12 -f HPA_04_pilon.fasta HPA_04_bwa_aligned_sorted.bam | bcftools call -c --threads 10 | vcfutils.pl vcf2fq -d 35 -D 220 | gzip> diploid_HPA_35_220.fq.gz
+bcftools mpileup -C50 -Ou --threads 12 -f HPA_pilon.fasta HPA_bwa_aligned_sorted.bam | bcftools call -c --threads 10 | vcfutils.pl vcf2fq -d 35 -D 220 | gzip> diploid_HPA_35_220.fq.gz
 ```
 
 *Parameters:*  
@@ -250,7 +250,7 @@ samtools sort -o HPA_bwa_aligned_sorted.bam -O BAM -@ 20 HPA_bwa_aligned.bam
 Finally, index your sorted bam file:
 
 ``` bash
-samtools index -b -@ 20 HPA_04_bwa_aligned_sorted.bam  
+samtools index -b -@ 20 HPA_bwa_aligned_sorted.bam  
 ```
 
 #### 2\. Call diploid genome
@@ -264,7 +264,7 @@ reads using bcftools. \*DeLeonLab– NOTE: I installed bcftools within the
 samtools conda environment on the chimera server
 
 ``` bash
-bcftools mpileup -C50 -Ou --threads 12 -f HPA_04_pilon.fasta HPA_04_bwa_aligned_sorted.bam | bcftools call -c --threads 10 | vcfutils.pl vcf2fq -d 35 -D 220 | gzip> diploid_HPA_35_220.fq.gz
+bcftools mpileup -C50 -Ou --threads 12 -f HPA_pilon.fasta HPA_bwa_aligned_sorted.bam | bcftools call -c --threads 10 | vcfutils.pl vcf2fq -d 35 -D 220 | gzip> diploid_HPA_35_220.fq.gz
 ```
 
 *Parameters:*  
