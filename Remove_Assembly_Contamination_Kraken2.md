@@ -1,4 +1,4 @@
-Remove assembly contamination with Kraken2
+Kraken2- Remove assembly contamination
 ================
 Remy Gatins
 June 01, 2020
