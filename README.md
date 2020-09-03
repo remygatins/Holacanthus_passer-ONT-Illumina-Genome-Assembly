@@ -1,4 +1,4 @@
-# Holacanthus_passer-ONT-Illumina-Genome-Assembly
+# *Holacanthus passer* Genome Assembly Pipeline
 Hybrid genome assembly pipeline of Holacanthus passer using Nanopore and Illumina sequencing
 
 <p align="center">
