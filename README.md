@@ -1,4 +1,4 @@
-# Hybrid genome assembly of the King Angelfish (*Holacanthus passer*) gives insight into the evolution of marine fishes of the Tropical Eastern Pacific 
+# ->Hybrid genome assembly of the King Angelfish (*Holacanthus passer*) gives insight into the evolution of marine fishes of the Tropical Eastern Pacific<-
 
 Here you will find a stepthrough to the entire *Holacanthus passer* genome assembly protocol carried out using Oxford Nanopore and Illumina sequencing. The genome assembly pipeline is illustrated below. Other step by step methods used to assess and analyse data (e.g. GenomeScope and PSMC) are also shared. 
 
