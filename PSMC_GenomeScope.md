@@ -197,10 +197,15 @@ size at older time scales. If you want to look at more recent time
 scales you might consider running a MSMC analysis instead.
 
 mutation rate = 1x10<sup>-8</sup>
-<img src="PSMC_GenomeScope_files/figure-gfm/unnamed-chunk-15-1.png" style="display: block; margin: auto;" />
+<p align="center">
+<img src="images/HPA_35_220_t30r5_plot_u1-8g5.png" width="700"/>
+</p>
 
 mutation rate = 1x10<sup>-9</sup>
-<img src="PSMC_GenomeScope_files/figure-gfm/unnamed-chunk-16-1.png" style="display: block; margin: auto;" />
+<p align="center">
+<img src="images/HPA_35_220_t30r5_plot_u1-9g5" width="700"/>
+</p>
+
 
 ## PSMC with Bootstrap
 
@@ -453,8 +458,12 @@ using a mutation rate `-u` for 1x10<sup>-8</sup> and 1x10<sup>-9</sup>
 /hpcstor4/data01/DeLeonLab/apps/psmc/utils/psmc_plot.pl -u 1e-09 -g 5 HPA_35_220_t30r5_plot_u1-9g5 diploid_HPA_35_220_t30r5.psmc  
 ```
 
-mutation rate `-u`= 1x10<sup>-8</sup>
-<img src="PSMC_GenomeScope_files/figure-gfm/unnamed-chunk-38-1.png" style="display: block; margin: auto;" />
+mutation rate = 1x10<sup>-8</sup>
+<p align="center">
+<img src="images/HPA_35_220_t30r5_plot_u1-8g5_boot.png" width="700"/>
+</p>
 
-mutation rate `-u`= 1x10<sup>-9</sup>
-<img src="PSMC_GenomeScope_files/figure-gfm/unnamed-chunk-39-1.png" style="display: block; margin: auto;" />
+mutation rate = 1x10<sup>-9</sup>
+<p align="center">
+<img src="images/HPA_35_220_t30r5_plot_u1-9g5_boot" width="700"/>
+</p>
