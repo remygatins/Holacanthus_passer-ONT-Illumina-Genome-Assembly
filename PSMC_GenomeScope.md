@@ -63,7 +63,7 @@ jellyfish histo -t 12 HPA_HiSeq.jf > HPA_HiSeq.histo
 
 4.  Upload reads.histo to GenomeScope: <http://qb.cshl.edu/genomescope/>
 
-<img src="PSMC_GenomeScope_files/figure-gfm/unnamed-chunk-4-1.png" style="display: block; margin: auto;" />
+<img src="/images/GenomeScope.png" style="display: block; margin: auto;" />
 
 After looking at your GenomeScope results and have a good idea of your
 average coverage, continue on to the PSMC analysis.
