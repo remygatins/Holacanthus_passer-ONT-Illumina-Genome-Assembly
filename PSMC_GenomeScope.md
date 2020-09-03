@@ -198,12 +198,12 @@ scales you might consider running a MSMC analysis instead.
 
 mutation rate = 1x10<sup>-8</sup>
 <p align="center">
-<img src="images/HPA_35_220_t30r5_plot_u1-8g5.png" width="700"/>
+<img src="images/HPA_35_220_t30r5_plot_u1-8g5.png" width="600"/>
 </p>
 
 mutation rate = 1x10<sup>-9</sup>
 <p align="center">
-<img src="images/HPA_35_220_t30r5_plot_u1-9g5" width="700"/>
+<img src="images/HPA_35_220_t30r5_plot_u1-9g5.png" width="600"/>
 </p>
 
 
@@ -460,10 +460,10 @@ using a mutation rate `-u` for 1x10<sup>-8</sup> and 1x10<sup>-9</sup>
 
 mutation rate = 1x10<sup>-8</sup>
 <p align="center">
-<img src="images/HPA_35_220_t30r5_plot_u1-8g5_boot.png" width="700"/>
+<img src="images/HPA_35_220_t30r5_plot_u1-8g5_boot.png" width="600"/>
 </p>
 
 mutation rate = 1x10<sup>-9</sup>
 <p align="center">
-<img src="images/HPA_35_220_t30r5_plot_u1-9g5_boot" width="700"/>
+<img src="images/HPA_35_220_t30r5_plot_u1-9g5_boot.png" width="600"/>
 </p>
