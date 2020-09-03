@@ -47,8 +47,8 @@ jellyfish count -C -m 21 -s 60000000000 -t 12 <(zcat HPA_HiSeq_R1.fq.gz) <(zcat 
 ```
 
 *Parameter key:*  
-`-C` indicates to count canonical kmers (**don’t change this**) `-m`
-kmer length (default -m 21)  
+`-C` indicates to count canonical kmers (**don’t change this**) 
+`-m` kmer length (default -m 21)  
 `-s` allocate memory  
 `-t` threads  
 `-o` output name (default is mer\_counts.jf)
