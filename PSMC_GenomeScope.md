@@ -62,7 +62,7 @@ jellyfish histo -t 12 HPA_HiSeq.jf > HPA_HiSeq.histo
 ```
 
 4.  Upload reads.histo to GenomeScope: <http://qb.cshl.edu/genomescope/>
-![](Holacanthus_passer-ONT-Illumina-Genome-Assembly/images/GenomeScope_profile.png)
+![](../images/GenomeScope_profile.png)
 
 <img src="/Holacanthus_passer-ONT-Illumina-Genome-Assembly/images/GenomeScope_profile.png" alt="Holacanthus Passer" style="height: 100px; width:100px;"/>
 
