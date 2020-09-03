@@ -3,6 +3,8 @@ Here you will find a stepthrough to the entire *Holacanthus passer* genome assem
 
 Overall the goal of this page was to write a tutorial for my fellow labmates, however, it is also useful for other early career scientists or beginners in bioinformatics to replicate some of these analyses. I am far from an expert programmer or bioinformatician &mdash; I spend a significant amount of time troubleshooting on google &mdash; so if anyone finds any problems with my code please let me know! =)
 
+I hope you find this a useful resource.
+
 <p align="center">
 <img src="images/HPA_Genome_assembly_pipeline.png" width="1000"/>
 </p>
