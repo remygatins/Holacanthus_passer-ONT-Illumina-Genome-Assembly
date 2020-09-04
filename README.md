@@ -10,7 +10,7 @@ I hope you find this a useful resource.
 <img src="images/HPA_Genome_assembly_pipeline.png" width="1000"/>
 </p>
 
-As hybrid assemblies combining long and short sequences become more common, there is a consistent ambiguity on the amount of coverage one needs from each sequencing technology. Both technologies are important during different steps of the assembly, however, should resources be focused more towards one technology rather than the other? In order to help others plan the amount of coverage they will need accordingly, we have assessed the BUSCO completeness of subsets of the same *H. passer* genome during each major assembly step. Subset coverage was calculated using the the final *H. passer* genome size of 583 Mb.
+As hybrid assemblies that combine long and short sequences become more common, there is a consistent ambiguity on the amount of coverage one needs from each sequencing technology. Both technologies are important during different steps of the assembly, however, should resources be focused more towards one technology rather than the other? In order to help others plan the amount of coverage they will need accordingly, we have assessed the BUSCO completeness of subsets of the same *H. passer* genome during each major assembly step. Subset coverage was calculated using the the final *H. passer* genome size of 583 Mb.
 
 <p align="center">
 <img src="images/Figure4_coverage_test.png" width="500"/>
