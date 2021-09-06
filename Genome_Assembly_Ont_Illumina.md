@@ -1,0 +1,816 @@
+ONT & Illumina Genome Assembly
+================
+Remy Gatins
+July 06, 2021
+
+-   [1. Nanopore Data](#1-nanopore-data)
+    -   [1.1 Guppy basecaller](#11-guppy-basecaller)
+        -   [Concatenate guppy fastq files into large
+            files](#concatenate-guppy-fastq-files-into-large-files)
+        -   [Check for fastq errors](#check-for-fastq-errors)
+        -   [Check general stats](#check-general-stats)
+        -   [Trim nanopore adapters and filter by quality and
+            length](#trim-nanopore-adapters-and-filter-by-quality-and-length)
+        -   [Porechop - trim nanopore
+            adapters](#porechop---trim-nanopore-adapters)
+        -   [Nanofilt - trim depending on quality and
+            length](#nanofilt---trim-depending-on-quality-and-length)
+    -   [1.2 WTDBG2 (RedBean) - genome
+        assembler](#12-wtdbg2-redbean---genome-assembler)
+        -   [assemble long reads](#assemble-long-reads)
+        -   [derive consensus](#derive-consensus)
+    -   [1.3 POLISHING x1 - Nanopore](#13-polishing-x1---nanopore)
+        -   [minimap2 (or bwa)- map reads](#minimap2-or-bwa--map-reads)
+        -   [racon- consensus](#racon--consensus)
+    -   [1.4 POLISHING x2 - Nanopore](#14-polishing-x2---nanopore)
+        -   [minimap2 (or bwa) - map
+            reads](#minimap2-or-bwa---map-reads)
+        -   [racon- consensus](#racon--consensus-1)
+-   [2.0 Illumina Data](#20-illumina-data)
+    -   [2.1 POLISHING x3- Illumina
+        Data](#21-polishing-x3--illumina-data)
+        -   [FastQC](#fastqc)
+        -   [Trimmomatic](#trimmomatic)
+        -   [FastQC](#fastqc-1)
+        -   [BWA v 0.7.17](#bwa-v-0717)
+        -   [SamTools v 1.9](#samtools-v-19)
+        -   [Pilon v1.23](#pilon-v123)
+    -   [2.2 POLISHING x4- Illumina
+        Data](#22-polishing-x4--illumina-data)
+        -   [BWA](#bwa)
+        -   [SamTools](#samtools)
+        -   [Pilon](#pilon)
+
+This tutorial is intended to guide the step by step process from your
+raw Nanopore and Illumina reads to a fully assembled genome
+
+# 1. Nanopore Data
+
+## 1.1 Guppy basecaller
+
+### Concatenate guppy fastq files into large files
+
+Concatenate all fastq files found in different directories starting from
+the directory where you will run the command
+
+I like to first concatenate my files per flow cell to get some extra
+statistics on the total output per run
+
+    cd /MinION/HPA101901/fastq
+    find . -type f -name '*.fastq' -exec cat {} + > HPA101901_bigfile.fastq
+
+    cd ../../HPA101902/fastq
+    find . -type f -name '*.fastq' -exec cat {} + > HPA101902_bigfile.fastq
+
+    cd ../../HPA101903/fastq
+    find . -type f -name '*.fastq' -exec cat {} + > ../HPA101903_bigfile.fastq
+
+    cd ../../HPA101902/fastq
+    find . -type f -name '*.fastq' -exec cat {} + > ../HPA101904_bigfile.fastq
+
+    ls -lh
+
+    30G HPA101901_bigfile.fastq
+    22G HPA101902_bigfile.fastq
+    12G HPA101903_bigfile.fastq
+    21G HPA101904_bigfile.fastq
+
+### Check for fastq errors
+
+first make sure your concatenated fastq files have correctly merged.
+
+I like to create a virtual screen to run in the background to run this
+
+    screen 
+
+    conda activate fastq_utils
+
+    fastq_info HPA101902_bigfile.fastq
+
+    e.g. ERROR: Error in file HPA101902_bi gfile_.fastq: line 418645: invalid character '@' (hex. code:'40'), expected ACGTacgt0123nN.
+
+error in line 418645 lets see what’s going on
+
+    cat HPA101902_bigfile.fastq | sed -n '418642p'
+    cat HPA101902_bigfile.fastq | sed -n '/@9e297ffa-fe27-471c-820a-d389d8281ade/, +6p' | less -S
+    cat HPA101902_bigfile.fastq | sed -n '418637p'
+    cat HPA101902_bigfile.fastq | sed -n '/@1bb0b741-177f-46b5-980d-9e16296a5592/, +12p' | less -S
+
+Sometimes nanopore/guppy will output an error and not add the phred
+scores to the sequence, messing up the order of the fastq file.
+
+Here it seems like we need to add an enter before the sequence ID
+`@9e297ffa-fe27-471c-820a-d389d8281ade`
+
+To insert an enter before the first sequence ID and remove the sequence
+above with its corresponding sequence and quality if available. We ouput
+the file to a new file to never overwrite the original files
+
+    cat HPA101902_bigfile.fastq | sed 's/@9e297ffa-fe27-471c-820a-d389d8281ade/\n&/g'| sed '/@85c087da-0b81-4b7a-8c6e-367aedb113ba/,+1 d' > HPA101902_bigfile_corr_1.fastq
+
+Now we check again
+
+    fastq_info HPA101902_bigfile_corr_1.fastq
+
+error line 569081
+
+    cat HPA101902_bigfile_corr_1.fastq | sed -n '569077p'
+    cat HPA101902_bigfile_corr_1.fastq | sed -n '/@6d7ba78a-9b8a-4cd2-97f6-412b4d4e7f25/, +8p' | less -S
+    cat HPA101902_bigfile_corr_1.fastq | sed 's/@bf7c135f-9435-4524-9fdc-3273b2321cfa/\n&/g'| sed '/@6d7ba78a-9b8a-4cd2-97f6-412b4d4e7f25/,+1 d' > HPA101902_bigfile_corr_2.fastq
+
+and so on…
+
+    fastq_info HPA101902_bigfile_corr_2.fastq
+    1751432
+    cat HPA101902_bigfile_corr_2.fastq | sed -n '1751429p'
+    cat HPA101902_bigfile_corr_2.fastq | sed -n '/@7a04fffd-36a7-447f-97aa-9f89b6e2c3b5/, +8p' | less -S
+    cat HPA101902_bigfile_corr_2.fastq | sed 's/@067e7015-450c-4dc9-9f89-b5461981c2eb/\n&/g'| sed '/@7a04fffd-36a7-447f-97aa-9f89b6e2c3b5/,+2 d' > HPA101902_bigfile_corr_3.fastq
+
+    fastq_info HPA101902_bigfile_corr_3.fastq
+    1751432
+    cat HPA101902_bigfile_corr_3.fastq | sed -n '1751426p'
+    cat HPA101902_bigfile_corr_3.fastq | sed -n '/@067e7015-450c-4dc9-9f89-b5461981c2eb/, +12p' | less -S
+    cat HPA101902_bigfile_corr_3.fastq | sed -n '1751426p' | wc -c
+    4045
+    cat HPA101902_bigfile_corr_3.fastq | sed -n '1751428p' | wc -c
+    4045
+    cat HPA101902_bigfile_corr_3.fastq | sed -n '1751429p' | wc -c
+    6455
+
+To delete a specific line number
+
+    cat HPA101902_bigfile_corr_3.fastq | sed -i '1751429d' HPA101902_bigfile_corr_4.fastq
+
+keep checking for error until you get no more
+
+    fastq_info HPA101902_bigfile_corr_4.fastq
+    2048116
+    cat HPA101902_bigfile_corr_4.fastq | sed -n '2048113p'
+    cat HPA101902_bigfile_corr_4.fastq | sed -n '/@6136173d-0832-4805-9949-3a17e7a9c6c5/, +10p' | less -S
+    cat HPA101902_bigfile_corr_4.fastq | sed 's/@9b507772-b1e3-437b-88fe-fd0bf0551a28/\n&/g'| sed '/@6136173d-0832-4805-9949-3a17e7a9c6c5/,+3 d' > HPA101902_bigfile_corr_5.fastq
+
+    fastq_info HPA101902_bigfile_corr_5.fastq
+    2120228
+    cat HPA101902_bigfile_corr_5.fastq | sed -n '2120225p'
+    cat HPA101902_bigfile_corr_5.fastq | sed -n '/@bc154f60-3ce5-4bec-b797-36b9ddeccbda/, +10p' | less -S
+    cat HPA101902_bigfile_corr_5.fastq | sed 's/@96dd7e87-7695-47f2-800e-95abfa3d8e6d/\n&/g'| sed '/@bc154f60-3ce5-4bec-b797-36b9ddeccbda/,+3 d' > HPA101902_bigfile_corr_6.fastq
+
+    fastq_info HPA101902_bigfile_corr_6.fastq
+    4531404
+    cat HPA101902_bigfile_corr_6.fastq | sed -n '4531401p'
+    cat HPA101902_bigfile_corr_6.fastq | sed -n '/@bb82f581-e253-42ce-8b9c-d88aff7f4bc9/, +10p' | less -S
+    cat HPA101902_bigfile_corr_6.fastq | sed 's/@1e40c90b-a237-47fc-95ab-6d00bc19e680/\n&/g'| sed '/@bb82f581-e253-42ce-8b9c-d88aff7f4bc9/,+3 d' > HPA101902_bigfile_corr_7.fastq
+
+    fastq_info HPA101902_bigfile_corr_7.fastq
+
+### Check general stats
+
+#### NANOSTAT
+
+check stats from each sequencing\_summary.txt generated by guppy
+
+    conda activate nanostat
+    NanoStat --summary HPA101901/Hpasser1/fastq/sequencing_summary.txt HPA101901/Hpasser2/fastq/sequencing_summary.txt HPA101901/Hpasser3/fastq/sequencing_summary.txt HPA101901/Hpasser4/fastq/sequencing_summary.txt HPA101902/guppy_results/sequencing_summary.txt HPA101903/fastq/sequencing_summary.txt HPA101904/fastq/sequencing_summary.txt --readtype 1D -t 5 --name NanoStat_Summary_report
+
+check stats from fastq files keep all stats in an excel table to have
+for publication information
+
+    NanoStat --fastq HPA_fastq/HPA101901_bigfile.fastq --threads 24 --name HPA_fastq/HPA101901_statfastq_report
+
+    NanoStat --fastq HPA_fastq/HPA101902_bigfile_corr_7.fastq --threads 24 --name HPA_fastq/HPA101902_statfastq_report
+
+    NanoStat --fastq HPA_fastq/HPA101903_bigfile.fastq --threads 24 --name HPA_fastq/HPA101903_statfastq_report
+
+    NanoStat --fastq HPA_fastq/HPA101904_bigfile.fastq --threads 24 --name HPA_fastq/HPA101904_statfastq_report
+
+now concatenate all four fastq files into one large fastq file that will
+be your big starting file
+
+    cat HPA101901_bigfile.fastq HPA101902_bigfile_corr_7.fastq HPA101903_bigfile.fastq HPA101904_bigfile.fastq > HPA_big_01.fastq
+
+check fastq information
+
+    fastq_info HPA_big_01.fastq
+
+output statistics for large concatenated file
+
+    NanoStat --fastq HPA_fastq/HPA_big_01.fastq --threads 24 --name HPA_fastq/HPA_big_01_statfastq_report
+
+#### NANOPLOT
+
+    conda activate nanoplot
+
+    NanoPlot -t 5 --fastq  HPA_fastq/HPA_big_01.fastq --plots hex dot --outdir HPA_fastq/nanoplot/
+
+plot max up to 80 Kb
+
+    NanoPlot -t 5 --fastq  HPA_fastq/HPA_big_01.fastq --plots hex dot --maxlength 80000 --prefix 80Kmax --outdir HPA_fastq/nanoplot/
+
+Take a closer look and plot max 20 Kb
+
+    NanoPlot -t 5 --fastq  HPA_fastq/HPA_big_01.fastq --plots hex dot --maxlength 20000 --prefix 20Kmax --outdir HPA_fastq/nanoplot/
+
+### Trim nanopore adapters and filter by quality and length
+
+    gzip HPA_big_01.fastq
+
+### Porechop - trim nanopore adapters
+
+porechop -i HPA\_fastq/HPA\_big\_01.fastq.gz -o
+HPA\_fastq/HPA\_big\_01\_pc.fastq.gz –threads 24
+
+### Nanofilt - trim depending on quality and length
+
+I want to keep my long reads so first I’m filtering with a low q in
+order to keep my longest reads and help with the assembly
+
+    gunzip -c HPA_fastq/HPA_big_01_pc.fastq.gz | NanoFilt -q 3 -l 1000 | gzip > HPA_fastq/HPA_big_01_pc_l1000_q3.fastq.gz
+
+I have a large number of short fragments so I am filtering a minimum
+length of 500 with a higher quality (q5).
+
+This file will be used to polish genome
+
+    gunzip -c HPA_fastq/HPA_big_01_pc.fastq.gz | NanoFilt -q 5 -l 500 | gzip > HPA_fastq/HPA_big_01_pc_l500_q5.fastq.gz
+
+gunzip -c HPA\_fastq/HPA\_big\_01\_pc.fastq.gz \| NanoFilt -q 10 -l 500
+\| gzip &gt; HPA\_fastq/HPA\_big\_01\_pc\_l500\_q10.fastq.gz
+
+## 1.2 WTDBG2 (RedBean) - genome assembler
+
+assembler (wtdbg2) & consensus (wtpoa-cns) (approximate duration 24
+hours
+
+### assemble long reads
+
+    /hpcstor4/data01/DeLeonLab/programs/wtdbg2/wtdbg2 -x ont -g 800m -t 24 -L 1000 -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_fastq/HPA_big_01_pc_l1000_q3.fastq.gz -fo HPA_01_ont
+
+Options: -x sequencing technology -g Approximate genome size (k/m/g
+suffix allowed) -i input file -fo output prefix
+
+### derive consensus
+
+    /hpcstor4/data01/DeLeonLab/programs/wtdbg2/wtpoa-cns -t 24 -i HPA_01_ont.ctg.lay.gz -fo HPA_01_ont.ctg.fa
+
+    conda activate assembly_stats
+    assembly-stats HPA_01_ont.ctg.fa
+
+Output:
+
+    sum = 581,422,425 n = 486, ave = 1,196,342.44, largest = 17,088,287
+    N50 = 5,681,869, n = 30
+    N60 = 4,036,282, n = 42
+    N70 = 3079349, n = 59
+    N80 = 1683855, n = 86
+    N90 = 997074, n = 131
+    N100 = 1676, n = 486
+    N_count = 0
+    Gaps = 0
+
+## 1.3 POLISHING x1 - Nanopore
+
+### minimap2 (or bwa)- map reads
+
+Before polishing with Racon, first map your clean\_raw reads to your
+assembly with minimap.
+
+    conda activate minimap2
+
+    minimap2 -ax map-ont -t 24 /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_01_ont.ctg.fa /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_fastq/HPA_big_01_pc_l500_q5.fastq.gz > HPA_01_mmap.sam
+
+### racon- consensus
+
+now that our raw reads are mapped to the draft assembly racon will make
+a consensus
+
+program default:
+
+`racon [options ...] <sequences> <overlaps> <target sequences>` -u,
+–include-unpolished output unpolished target sequences -t, –threads
+<int>
+
+    #load programs
+    module load gcc/8.2.0
+    module load racon/1.4.9
+
+    #or 
+
+    conda activate racon
+
+    #---- run command ----
+    racon -u -m 5 -x -4 -g -8 -w 500 -t 24 /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_fastq/HPA_big_01_pc_l500_q5.fastq.gz /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_01_mmap.sam /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_01_ont.ctg.fa > HPA_01_racon.fasta
+
+options: -u, –include-unpolished  
+output unpolished target sequences  
+-f, –fragment-correction perform fragment correction instead of contig
+polishing (overlaps file should contain dual/self overlaps!)  
+-w, –window-length <int>  
+default: 500  
+size of window on which POA is performed  
+-q, –quality-threshold <float>  
+default: 10.0  
+threshold for average base quality of windows used in POA  
+-e, –error-threshold <float>  
+default: 0.3  
+maximum allowed error rate used for filtering overlaps  
+-m, –match <int>  
+default: 5  
+score for matching bases  
+-x, –mismatch <int>  
+default: -4  
+score for mismatching bases  
+-g, –gap <int>  
+default: -8  
+gap penalty (must be negative)  
+-t, –threads <int>  
+default: 1  
+number of threads
+
+#### Check Assembly Stats
+
+    conda activate assembly_stats
+
+    assembly-stats HPA_01_racon.fasta
+
+output:
+
+    stats for HPA_01_racon.fasta
+    sum = 583574933, n = 486, ave = 1200771.47, largest = 17147963
+    N50 = 5707473, n = 30
+    N60 = 4057310, n = 42
+    N70 = 3091312, n = 59
+    N80 = 1691677, n = 86
+    N90 = 1000168, n = 131
+    N100 = 1676, n = 486
+    N_count = 0
+    Gaps = 0
+
+#### KAT K-mer analysis and GC content
+
+    conda activate kat
+
+    kat hist HPA_01_ont.ctg.fa
+    kat gcp HPA_01_ont.ctg.fa
+
+`kat hist <input>`Creates a histogram with the number of distinct k-mers
+having a given frequency, derived from the input.
+
+`kat gcp <input>` counts the GC nucleotides for each distinct K-mer in
+the hash
+
+For each GC count and K-mer coverage level, the number of distinct
+K-mers are counted and stored in a matrix. This helps to distinguish
+legitimate content from contamination, which often appear as separate
+spots at unexpected GC and coverage levels.
+
+Other options to play with: `kat plot spectra-hist <hist_file>` plot
+histogram of k-mer distribution  
+`kat plot density <matrix_file>` \#show density plot of GC and K-mer
+`kat plot spectra-cn <matrix_file>` \#Show K-mer duplication levels
+
+#### BUSCO
+
+22. 3.0.1 Assessing genome assembly and annotation completeness with
+    Benchmarking Universal Single-Copy Orthologs
+
+download the required datasets and untar
+
+    #Eukaryota dataset
+    wget http://busco.ezlab.org/v2/datasets/eukaryota_odb9.tar.gz
+    tar -zxf eukaryota_odb9.tar.gz
+
+    #Actinopterygii dataset
+    wget http://busco.ezlab.org/v2/datasets/actinopterygii_odb9.tar.gz
+    tar -zxf actinopterygii_odb9.tar.gz
+
+Run Busco with eukaryota dataset
+
+    run_BUSCO.py -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HPA_01_racon.fasta  -o HPA_01_busco -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/eukaryota_odb9 -m geno -sp zebrafish --cpu 24
+
+Show output:
+
+    cat short_summary_HPA_01_busco.txt
+
+    # BUSCO version is: 3.0.2 
+    # The lineage dataset is: eukaryota_odb9 (Creation date: 2016-11-02, number of species: 100, number of BUSCOs: 303)
+    # To reproduce this run: python /hpcstor4/data01/DeLeonLab/apps/ls/envs/busco/bin/run_BUSCO.py -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HPA_01_racon.fasta -o HPA_01_busco -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/eukaryota_odb9/ -m genome -c 12 -sp zebrafish
+    #
+    # Summarized benchmarking in BUSCO notation for file /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HPA_01_racon.fasta
+    # BUSCO was run in mode: genome
+
+        C:92.4%[S:89.1%,D:3.3%],F:1.0%,M:6.6%,n:303
+
+        280 Complete BUSCOs (C)
+        270 Complete and single-copy BUSCOs (S)
+        10  Complete and duplicated BUSCOs (D)
+        3   Fragmented BUSCOs (F)
+        20  Missing BUSCOs (M)
+        303 Total BUSCO groups searched
+
+Run Busco with actinopterygii dataset
+
+    run_BUSCO.py -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HPA_01_racon.fasta  -o HPA_01_busco_actinop -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/actinopterygii_odb9 -m geno -sp zebrafish --cpu 24
+
+SHow summmary
+
+    cat short_summary_HPA_01_busco_actinop.txt
+
+    # Summarized benchmarking in BUSCO notation for file /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HPA_01_racon.fasta
+    # BUSCO was run in mode: genome
+
+        C:93.0%[S:90.2%,D:2.8%],F:3.8%,M:3.2%,n:4584
+
+        4263    Complete BUSCOs (C)
+        4133    Complete and single-copy BUSCOs (S)
+        130 Complete and duplicated BUSCOs (D)
+        176 Fragmented BUSCOs (F)
+        145 Missing BUSCOs (M)
+        4584    Total BUSCO groups searched
+
+## 1.4 POLISHING x2 - Nanopore
+
+### minimap2 (or bwa) - map reads
+
+map your clean\_raw reads to your assembly with minimap.
+
+    conda activate minimap2
+
+    minimap2 -ax map-ont -t24 /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_01_racon.fasta /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_fastq/HPA_big_01_pc_l500_q5.fastq > HPA_02_mmap.sam
+
+### racon- consensus
+
+make a consensus sequence
+
+    conda activate racon
+
+    racon -u -m 5 -x -4 -g -8 -w 500 -t 24 /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_fastq/HPA_big_01_pc_l500_q5.fastq /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_02_mmap.sam /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_01_racon.fasta > HPA_02_racon.fasta
+
+#### Check Assembly Stats
+
+    conda activate assembly_stats
+
+    assembly-stats HPA_02_racon.fasta
+
+Output:
+
+    stats for HPA_02_racon.fasta
+    sum = 583552491, n = 486, ave = 1200725.29, largest = 17147600
+    N50 = 5709778, n = 30
+    N60 = 4059009, n = 42
+    N70 = 3091545, n = 59
+    N80 = 1692202, n = 86
+    N90 = 1000597, n = 131
+    N100 = 1676, n = 486
+    N_count = 0
+    Gaps = 0
+
+#### BUSCO 3.0.1
+
+Assessing genome assembly and annotation completeness with Benchmarking
+Universal Single-Copy Orthologs
+
+No need to re-download the initial dataset  
+Run BUSCO with the Eukaryota dataset
+
+    run_BUSCO.py -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_02_racon.fasta  -o HPA_02_busco -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/eukaryota_odb9 -m geno -sp zebrafish --cpu 24
+
+Output:
+
+    # BUSCO version is: 3.0.2 
+    # The lineage dataset is: eukaryota_odb9 (Creation date: 2016-11-02, number of species: 100, number of BUSCOs: 303)
+    # To reproduce this run: python /hpcstor4/data01/DeLeonLab/apps/ls/envs/busco/bin/run_BUSCO.py -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_02_racon.fasta -o HPA_02_busco -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/eukaryota_odb9/ -m genome -c 24 -sp zebrafish
+    #
+    # Summarized benchmarking in BUSCO notation for file /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_02_racon.fasta
+    # BUSCO was run in mode: genome
+
+        C:92.4%[S:89.1%,D:3.3%],F:1.3%,M:6.3%,n:303
+
+        280 Complete BUSCOs (C)
+        270 Complete and single-copy BUSCOs (S)
+        10  Complete and duplicated BUSCOs (D)
+        4   Fragmented BUSCOs (F)
+        19  Missing BUSCOs (M)
+        303 Total BUSCO groups searched
+
+Run Busco with the Actinopterygii dataset
+
+    run_BUSCO.py -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_02_racon.fasta  -o HPA_02_busco_actinop -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/actinopterygii_odb9 -m geno -sp zebrafish --cpu 24
+
+Show output
+
+    cat short_summary_HPA_02_busco_actinop.txt
+
+output:
+
+    # BUSCO version is: 3.0.2 
+    # The lineage dataset is: actinopterygii_odb9 (Creation date: 2016-02-13, number of species: 20, number of BUSCOs: 4584)
+    # To reproduce this run: python /hpcstor4/data01/DeLeonLab/apps/ls/envs/busco/bin/run_BUSCO.py -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_02_racon.fasta -o HPA_02_busco_actinop -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/actinopterygii_odb9/ -m genome -c 24 -sp zebrafish
+    #
+    # Summarized benchmarking in BUSCO notation for file /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_02_racon.fasta
+    # BUSCO was run in mode: genome
+
+        C:93.7%[S:90.8%,D:2.9%],F:3.4%,M:2.9%,n:4584
+
+        4296    Complete BUSCOs (C)
+        4163    Complete and single-copy BUSCOs (S)
+        133 Complete and duplicated BUSCOs (D)
+        155 Fragmented BUSCOs (F)
+        133 Missing BUSCOs (M)
+        4584    Total BUSCO groups searched
+
+# 2.0 Illumina Data
+
+## 2.1 POLISHING x3- Illumina Data
+
+Now we add the Illumina Data
+
+*REMINDER* my last consensus sequence from Nanopore data is
+HPA\_02\_racon.fasta
+
+### FastQC
+
+Quality check sequences and look at adapter presence output will spit
+out a html file which you can download to your computer to open
+
+fastqc HPA011703\_F.fq.gz -o ./fastqc\_results/ fastqc
+HPA011703\_R.fq.gz -o ./fastqc\_results/
+
+### Trimmomatic
+
+22. 0.39  
+    After checking the fastqc results you will probably need to remove
+    adapters and trim the ends. Regular usage:
+
+<!-- -->
+
+    trimmomatic PE [-version] [-threads <threads>] [-phred33|-phred64] [-trimlog <trimLogFile>] [-summary <statsSummaryFile>] [-quiet] [-validatePairs] [-basein <inputBase> | <inputFile1> <inputFile2>] [-baseout <outputBase> | <outputFile1P> <outputFile1U> <outputFile2P> <outputFile2U>] <trimmer1>...
+
+    #or
+
+    trimmomatic PE input_forward.fq.gz input_reverse.fq.gz output_forward_paired.fq.gz output_forward_unpaired.fq.gz output_reverse_paired.fq.gz output_reverse_unpaired.fq.gz ILLUMINACLIP:TruSeq3-PE.fa:2:30:10:2:keepBothReads LEADING:3 TRAILING:3 MINLEN:36
+
+    conda activate trimmomatic
+
+    trimmomatic PE -threads 8 -phred33 -summary Summary_Stats HPA011703_F.fq.gz HPA011703_R.fq.gz HPA011703_F_trim_paired.fq.gz HPA011703_F_trim_unpaired.fq.gz HPA011703_R_trim_paired.fq.gz HPA011703_R_trim_unpaired.fq.gz ILLUMINACLIP:/hpcstor4/data01/DeLeonLab/apps/ls/envs/trimmomatic/share/trimmomatic-0.39-1/adapters/TruSeq3-PE.fa:2:30:10:2:keepBothReads LEADING:2 TRAILING:2 MINLEN:25
+
+Options used: - Remove adapters *(ILLUMINACLIP:TruSeq3-PE.fa:2:30:10)* -
+Remove leading low quality or N bases (below quality 3) *(LEADING:3)* -
+Remove trailing low quality or N bases (below quality 3) *(TRAILING:3)*
+- Scan the read with a 4-base wide sliding window, cutting when the
+average quality per base drops below 15 *(SLIDINGWINDOW:4:15)* - Drop
+reads below the 36 bases long *(MINLEN:36)*
+
+### FastQC
+
+Compare adapter presence in trimmed sequences to initial sequences to
+make sure you have removed them all.
+
+    fastqc  HPA011703_F_trim_paired.fq.gz -o ./fastqc_results/
+    fastqc  HPA011703_R_trim_paired.fq.gz -o ./fastqc_results/
+
+### BWA v 0.7.17
+
+No we map trimmed Illumina reads to our draft genome.  
+First we need to create an index assembly file.
+
+To index the draft genome HPA\_02\_racon.fasta
+
+    conda activate bwa
+
+    bwa index HPA_02_racon.fasta
+
+bwa index will create new files (.amb, .ann, .bwt, .pac, .sa) that will
+need to be within the directory to map sequences using bwa.
+
+now map illumina reads to assembly
+
+    bwa mem -t16 HPA_02_racon.fasta HPA011703_F_trim_paired.fq.gz HPA011703_R_trim_paired.fq.gz > HPA011703_bwa_aligned.sam
+
+### SamTools v 1.9
+
+convert and sort .sam file to input into Pilon
+
+Convert .sam to .bam
+
+    samtools view -Sb -@ 16 -O BAM -o HPA011703_bwa_aligned.bam HPA011703_bwa_aligned.sam
+
+Sort output
+
+    samtools sort -o HPA011703_bwa_aligned_sorted.bam -O BAM -@ 16 HPA011703_bwa_aligned.bam
+
+Index reference genome to optimize search
+
+    samtools index -b -@ 30 HPA011703_bwa_aligned_sorted.bam
+
+Options:
+
+    -Sb     input format bam
+    -@      threads
+    -o      FILE  output file name
+    -O      output format (SAM, BAM, CRAM)
+    -b      output BAM
+
+### Pilon v1.23
+
+No polish the previous consensus genome with the illumina sorted data
+
+However, we first need to change the default maximum memory assigned by
+pilon.
+
+Find the pilon program in your environment.  
+Just find pilon wrapper and change this line
+
+edit pilon with `nano pilon` or any editor
+
+find `default_jvm_mem_opts = ['-Xms512m', '-Xmx1g']` and change to
+`default_jvm_mem_opts = ['-Xms512m', '-Xmx700G']` I chose 700G because I
+know my genome is around 600 Mb. The memory you need depends on your
+genome size. In general you should allocate 1Gb for every Mb
+
+Now you can run pilon
+
+    conda activate pilon
+
+    pilon -Xmx650G --genome HPA_02_racon.fasta --bam HPA011703_bwa_aligned_sorted.bam  --output HPA_03_pilon --outdir /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HiSeq_HPA011703/pilon/ --changes --vcf --tracks --threads 22 > /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HiSeq_HPA011703/HPA_03_pilon_out.log
+
+duration: \~24 hours
+
+#### Check Assembly Stats
+
+this can be run directly in the command line (&lt; 5 seconds)
+
+    conda activate assembly_stats
+
+    assembly-stats HPA_03_pilon.fasta
+
+output:
+
+    stats for HPA_03_pilon.fasta
+    sum = 583601337, n = 486, ave = 1200825.80, largest = 17150647
+    N50 = 5708674, n = 30
+    N60 = 4057574, n = 42
+    N70 = 3092123, n = 59
+    N80 = 1692096, n = 86
+    N90 = 1000715, n = 131
+    N100 = 1676, n = 486
+    N_count = 0
+    Gaps = 0
+
+#### BUSCO 3.0.1
+
+Assessing genome assembly and annotation completeness with Benchmarking
+Universal Single-Copy Orthologs
+
+make an output directory within your BUSCO directory to keep things
+organized
+
+    mkdir run_HPA_03_busco run_HPA_03_busco_actinop
+
+    #Eukaryota dataset
+    run_BUSCO.py -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HiSeq_HPA011703/pilon/HPA_03_pilon.fasta  -o HPA_03_busco -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/eukaryota_odb9 -m geno -sp zebrafish --cpu 12
+    #Actiinopterygii dataset
+    run_BUSCO.py -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HiSeq_HPA011703/pilon/HPA_03_pilon.fasta  -o HPA_03_busco_actinop -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/actinopterygii_odb9 -m geno -sp zebrafish --cpu 12
+
+Eukaryota output:
+
+`cat short_summary_HPA_03_busco_.txt`
+
+        C:93.1%[S:88.1%,D:5.0%],F:0.7%,M:6.2%,n:303
+
+        282 Complete BUSCOs (C)
+        267 Complete and single-copy BUSCOs (S)
+        15  Complete and duplicated BUSCOs (D)
+        2   Fragmented BUSCOs (F)
+        19  Missing BUSCOs (M)
+        303 Total BUSCO groups searched
+
+Actinopterygii output: `cat short_summary_HPA_03_busco_actinop.txt`
+
+        C:97.5%[S:95.2%,D:2.3%],F:0.8%,M:1.7%,n:4584
+
+        4468    Complete BUSCOs (C)
+        4364    Complete and single-copy BUSCOs (S)
+        104 Complete and duplicated BUSCOs (D)
+        38  Fragmented BUSCOs (F)
+        78  Missing BUSCOs (M)
+        4584    Total BUSCO groups searched
+
+## 2.2 POLISHING x4- Illumina Data
+
+*REMINDER* my last consensus sequence after 2x Nanopore(racon) + 1x
+illumina( pilon) data is HPA\_03\_pilon.fasta
+
+### BWA
+
+We will need to repeat the steps from before but now using our latest
+genomme. So, to map trimmed Illumina reads to our draft genome first
+create an index assembly file.  
+Index the draft genome HPA\_03\_pilon.fasta
+
+    conda activate bwa
+
+    bwa index HPA_03_pilon.fasta
+
+bwa index will create new files (.amb, .ann, .bwt, .pac, .sa) that will
+need to be within the directory to map sequences using bwa.  
+Now map illumina reads to assembly
+
+    bwa mem -t16 HPA_03_pilon.fasta HPA011703_F_trim_paired.fq.gz HPA011703_R_trim_paired.fq.gz > HPA_03_pilon_bwa_aligned.sam
+
+### SamTools
+
+convert and sort .sam file to input into Pilon
+
+convert .sam to .bam
+
+    samtools view -Sb -@ 16 -O BAM -o HPA_03_pilon_bwa_aligned.bam HPA_03_pilon_bwa_aligned.sam
+
+sort output
+
+    samtools sort -o HPA_03_pilon_bwa_aligned_sorted.bam -O BAM -@ 16 HPA_03_pilon_bwa_aligned.bam
+
+index reference genome to optimize search
+
+    samtools index -b -@ 30 HPA_03_pilon_bwa_aligned_sorted.bam
+
+Options:
+
+    -Sb     input format bam
+    -@      threads
+    -o      FILE  output file name
+    -O      output format (SAM, BAM, CRAM)
+    -b      output BAM
+
+### Pilon
+
+v1.23
+
+Polish (4th polish overall) REmember: the memory you need depends on
+your genome size. In general you should allocate 1Gb for every Mb. My
+genome is about 600Mb.  
+my available node with the most memory is: Intel(R) Xeon(R) Gold 6126
+CPU @ 2.60GHz - (24 cores total/node) 756G RAM
+
+You need to leave available memory
+
+    conda activate pilon
+
+    pilon -Xmx650G --genome HPA_03_pilon.fasta --bam HPA_03_pilon_bwa_aligned_sorted.bam  --output HPA_04_pilon --outdir /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HiSeq_HPA011703/ --changes --vcf --tracks --threads 22 > HPA_04_pilon_out.log
+
+run time: \~24 hours
+
+#### Check Assembly Stats
+
+this can be run directly in the command line (5 seconds)
+
+    conda activate assembly_stats
+
+    assembly-stats HPA_04_pilon.fasta
+
+    stats for HPA_04_pilon.fasta
+    sum = 583528366, n = 486, ave = 1200675.65, largest = 17148928
+    N50 = 5708022, n = 30
+    N60 = 4056739, n = 42
+    N70 = 3091862, n = 59
+    N80 = 1691943, n = 86
+    N90 = 1000532, n = 131
+    N100 = 1676, n = 486
+    N_count = 0
+    Gaps = 0
+
+#### BUSCO 3.0.1
+
+Assessing genome assembly and annotation completeness with Benchmarking
+Universal Single-Copy Orthologs
+
+Make new directory within BUSCO
+
+    mkdir run_HPA_04_busco run_HPA_04_busco_actinop
+
+    #Eukaryota dataset
+    run_BUSCO.py -f -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HiSeq_HPA011703/HPA_04_pilon.fasta  -o HPA_04_busco -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/eukaryota_odb9 -m geno -sp zebrafish --cpu 12
+
+    #Actinopterygii dataset
+    run_BUSCO.py -f -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HiSeq_HPA011703/HPA_04_pilon.fasta  -o HPA_04_busco_actinop -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/actinopterygii_odb9 -m geno -sp zebrafish --cpu 12
+
+See Eukaryota summary `cat short_summary_HPA_04_busco_.txt`
+
+        C:95.4%[S:90.4%,D:5.0%],F:0.7%,M:3.9%,n:303
+
+        289 Complete BUSCOs (C)
+        274 Complete and single-copy BUSCOs (S)
+        15  Complete and duplicated BUSCOs (D)
+        2   Fragmented BUSCOs (F)
+        12  Missing BUSCOs (M)
+        303 Total BUSCO groups searched
+
+See actinopterygii summary `cat short_summary_HPA_04_busco_actinop.txt`
+
+        C:97.5%[S:95.3%,D:2.2%],F:0.8%,M:1.7%,n:4584
+
+        4471    Complete BUSCOs (C)
+        4368    Complete and single-copy BUSCOs (S)
+        103 Complete and duplicated BUSCOs (D)
+        37  Fragmented BUSCOs (F)
+        76  Missing BUSCOs (M)
+        4584    Total BUSCO groups searched
