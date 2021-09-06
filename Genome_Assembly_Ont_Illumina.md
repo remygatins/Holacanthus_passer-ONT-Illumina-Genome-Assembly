@@ -1,7 +1,7 @@
-ONT & Illumina Genome Assembly
+1. ONT & Illumina Genome Assembly
 ================
 Remy Gatins
-July 06, 2021
+Sept 06, 2021
 
 -   [1. Nanopore Data](#1-nanopore-data)
     -   [1.1 Guppy basecaller](#11-guppy-basecaller)
@@ -32,13 +32,13 @@ July 06, 2021
         -   [FastQC](#fastqc)
         -   [Trimmomatic](#trimmomatic)
         -   [FastQC](#fastqc-1)
-        -   [BWA v 0.7.17](#bwa-v-0717)
-        -   [SamTools v 1.9](#samtools-v-19)
+        -   [BWA](#bwa)
+        -   [SamTools](#samtools)
         -   [Pilon v1.23](#pilon-v123)
     -   [2.2 POLISHING x4- Illumina
         Data](#22-polishing-x4--illumina-data)
-        -   [BWA](#bwa)
-        -   [SamTools](#samtools)
+        -   [BWA](#bwa-1)
+        -   [SamTools](#samtools-1)
         -   [Pilon](#pilon)
 
 This tutorial is intended to guide the step by step process from your
@@ -68,7 +68,11 @@ statistics on the total output per run
     cd ../../HPA101902/fastq
     find . -type f -name '*.fastq' -exec cat {} + > ../HPA101904_bigfile.fastq
 
+list all bigfiles
+
     ls -lh
+
+output:
 
     30G HPA101901_bigfile.fastq
     22G HPA101902_bigfile.fastq
@@ -216,8 +220,7 @@ Take a closer look and plot max 20 Kb
 
 ### Porechop - trim nanopore adapters
 
-porechop -i HPA\_fastq/HPA\_big\_01.fastq.gz -o
-HPA\_fastq/HPA\_big\_01\_pc.fastq.gz –threads 24
+    porechop -i HPA_fastq/HPA_big_01.fastq.gz -o HPA_fastq/HPA_big_01_pc.fastq.gz --threads 24
 
 ### Nanofilt - trim depending on quality and length
 
@@ -226,15 +229,12 @@ order to keep my longest reads and help with the assembly
 
     gunzip -c HPA_fastq/HPA_big_01_pc.fastq.gz | NanoFilt -q 3 -l 1000 | gzip > HPA_fastq/HPA_big_01_pc_l1000_q3.fastq.gz
 
-I have a large number of short fragments so I am filtering a minimum
+I have a large number of short fragments so I am now filtering a minimum
 length of 500 with a higher quality (q5).
 
-This file will be used to polish genome
+This file will be used to polish genome:
 
     gunzip -c HPA_fastq/HPA_big_01_pc.fastq.gz | NanoFilt -q 5 -l 500 | gzip > HPA_fastq/HPA_big_01_pc_l500_q5.fastq.gz
-
-gunzip -c HPA\_fastq/HPA\_big\_01\_pc.fastq.gz \| NanoFilt -q 10 -l 500
-\| gzip &gt; HPA\_fastq/HPA\_big\_01\_pc\_l500\_q10.fastq.gz
 
 ## 1.2 WTDBG2 (RedBean) - genome assembler
 
@@ -245,8 +245,11 @@ hours
 
     /hpcstor4/data01/DeLeonLab/programs/wtdbg2/wtdbg2 -x ont -g 800m -t 24 -L 1000 -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_fastq/HPA_big_01_pc_l1000_q3.fastq.gz -fo HPA_01_ont
 
-Options: -x sequencing technology -g Approximate genome size (k/m/g
-suffix allowed) -i input file -fo output prefix
+Options:  
+- `-x` sequencing technology  
+- `-g` Approximate genome size (k/m/g suffix allowed)  
+- `-i` input file  
+- `-fo` output prefix
 
 ### derive consensus
 
@@ -285,9 +288,12 @@ a consensus
 
 program default:
 
-`racon [options ...] <sequences> <overlaps> <target sequences>` -u,
-–include-unpolished output unpolished target sequences -t, –threads
-<int>
+    racon [options ...] <sequences> <overlaps> <target sequences>
+
+-   `-u`, `--include-unpolished` output unpolished target sequences
+-   `-t`, `--threads <int>`
+
+<!-- -->
 
     #load programs
     module load gcc/8.2.0
@@ -300,31 +306,20 @@ program default:
     #---- run command ----
     racon -u -m 5 -x -4 -g -8 -w 500 -t 24 /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_fastq/HPA_big_01_pc_l500_q5.fastq.gz /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_01_mmap.sam /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_01_ont.ctg.fa > HPA_01_racon.fasta
 
-options: -u, –include-unpolished  
-output unpolished target sequences  
--f, –fragment-correction perform fragment correction instead of contig
-polishing (overlaps file should contain dual/self overlaps!)  
--w, –window-length <int>  
-default: 500  
-size of window on which POA is performed  
--q, –quality-threshold <float>  
-default: 10.0  
-threshold for average base quality of windows used in POA  
--e, –error-threshold <float>  
-default: 0.3  
-maximum allowed error rate used for filtering overlaps  
--m, –match <int>  
-default: 5  
-score for matching bases  
--x, –mismatch <int>  
-default: -4  
-score for mismatching bases  
--g, –gap <int>  
-default: -8  
-gap penalty (must be negative)  
--t, –threads <int>  
-default: 1  
-number of threads
+options:  
+- `-u`, `--include-unpolished` output unpolished target sequences  
+- `-f`, `--fragment-correction` perform fragment correction instead of
+contig polishing (overlaps file should contain dual/self overlaps!)  
+- `-w`, `--window-length <int>` (default: 500) size of window on which
+POA is performed  
+- `-q`, `--quality-threshold <float>` (default: 10.0) threshold for
+average base quality of windows used in POA  
+- `-e`, `--error-threshold <float>` (default: 0.3) maximum allowed error
+rate used for filtering overlaps  
+- `-m`, `--match <int>` (default: 5) score for matching bases  
+- `-x`, `--mismatch <int>` (default: -4) score for mismatching bases  
+- `-g`, `--gap <int>` (default: -8) gap penalty (must be negative)  
+- `-t`, `--threads <int>` (default: 1) number of threads
 
 #### Check Assembly Stats
 
@@ -347,6 +342,10 @@ output:
 
 #### KAT K-mer analysis and GC content
 
+I like to get an idea of the size of my genome, coverage, and gc content
+from the start. However we will repeat this at the end with your final
+clean genome
+
     conda activate kat
 
     kat hist HPA_01_ont.ctg.fa
@@ -363,17 +362,20 @@ K-mers are counted and stored in a matrix. This helps to distinguish
 legitimate content from contamination, which often appear as separate
 spots at unexpected GC and coverage levels.
 
-Other options to play with: `kat plot spectra-hist <hist_file>` plot
-histogram of k-mer distribution  
-`kat plot density <matrix_file>` \#show density plot of GC and K-mer
-`kat plot spectra-cn <matrix_file>` \#Show K-mer duplication levels
+Other options to play with:  
+- `kat plot spectra-hist <hist_file>` plot histogram of k-mer
+distribution  
+- `kat plot density <matrix_file>` show density plot of GC and K-mer  
+- `kat plot spectra-cn <matrix_file>` show K-mer duplication levels
 
 #### BUSCO
 
-22. 3.0.1 Assessing genome assembly and annotation completeness with
-    Benchmarking Universal Single-Copy Orthologs
+v 3.0.1  
+Assessing genome assembly and annotation completeness with Benchmarking
+Universal Single-Copy Orthologs
 
-download the required datasets and untar
+Download the required datasets and untar them. You will only need to do
+this the first time you use BUSCO
 
     #Eukaryota dataset
     wget http://busco.ezlab.org/v2/datasets/eukaryota_odb9.tar.gz
@@ -411,7 +413,7 @@ Run Busco with actinopterygii dataset
 
     run_BUSCO.py -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/genome_assembly/HPA_01_racon.fasta  -o HPA_01_busco_actinop -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/actinopterygii_odb9 -m geno -sp zebrafish --cpu 24
 
-SHow summmary
+Show summmary
 
     cat short_summary_HPA_01_busco_actinop.txt
 
@@ -469,8 +471,8 @@ Output:
 Assessing genome assembly and annotation completeness with Benchmarking
 Universal Single-Copy Orthologs
 
-No need to re-download the initial dataset  
-Run BUSCO with the Eukaryota dataset
+*No need to re-download the initial dataset* Run BUSCO with the
+Eukaryota dataset
 
     run_BUSCO.py -i /hpcstor4/data01/DeLeonLab/remy/HPA_genome/MinION/HPA_02_racon.fasta  -o HPA_02_busco -l /hpcstor4/data01/DeLeonLab/remy/HPA_genome/BUSCO/eukaryota_odb9 -m geno -sp zebrafish --cpu 24
 
@@ -524,24 +526,21 @@ output:
 
 Now we add the Illumina Data
 
-*REMINDER* my last consensus sequence from Nanopore data is
-HPA\_02\_racon.fasta
+**REMINDER** my last consensus sequence from Nanopore data is
+`HPA_02_racon.fasta`
 
 ### FastQC
 
-Quality check sequences and look at adapter presence output will spit
-out a html file which you can download to your computer to open
+Quality check sequences and look at adapter presence. The output will
+spit out a html file which you can download to your computer to open
 
-fastqc HPA011703\_F.fq.gz -o ./fastqc\_results/ fastqc
-HPA011703\_R.fq.gz -o ./fastqc\_results/
+    fastqc  HPA011703_F.fq.gz -o ./fastqc_results/
+    fastqc  HPA011703_R.fq.gz -o ./fastqc_results/
 
 ### Trimmomatic
 
-22. 0.39  
-    After checking the fastqc results you will probably need to remove
-    adapters and trim the ends. Regular usage:
-
-<!-- -->
+v 0.39 After checking the fastqc results you will probably need to
+remove adapters and trim the ends. Regular usage:
 
     trimmomatic PE [-version] [-threads <threads>] [-phred33|-phred64] [-trimlog <trimLogFile>] [-summary <statsSummaryFile>] [-quiet] [-validatePairs] [-basein <inputBase> | <inputFile1> <inputFile2>] [-baseout <outputBase> | <outputFile1P> <outputFile1U> <outputFile2P> <outputFile2U>] <trimmer1>...
 
@@ -553,12 +552,13 @@ HPA011703\_R.fq.gz -o ./fastqc\_results/
 
     trimmomatic PE -threads 8 -phred33 -summary Summary_Stats HPA011703_F.fq.gz HPA011703_R.fq.gz HPA011703_F_trim_paired.fq.gz HPA011703_F_trim_unpaired.fq.gz HPA011703_R_trim_paired.fq.gz HPA011703_R_trim_unpaired.fq.gz ILLUMINACLIP:/hpcstor4/data01/DeLeonLab/apps/ls/envs/trimmomatic/share/trimmomatic-0.39-1/adapters/TruSeq3-PE.fa:2:30:10:2:keepBothReads LEADING:2 TRAILING:2 MINLEN:25
 
-Options used: - Remove adapters *(ILLUMINACLIP:TruSeq3-PE.fa:2:30:10)* -
-Remove leading low quality or N bases (below quality 3) *(LEADING:3)* -
-Remove trailing low quality or N bases (below quality 3) *(TRAILING:3)*
-- Scan the read with a 4-base wide sliding window, cutting when the
-average quality per base drops below 15 *(SLIDINGWINDOW:4:15)* - Drop
-reads below the 36 bases long *(MINLEN:36)*
+Options used:  
+- `ILLUMINACLIP:TruSeq3-PE.fa:2:30:10` Remove adapters  
+- `LEADING:3` Remove leading low quality or N bases (below quality 3)  
+- `TRAILING:3`Remove trailing low quality or N bases (below quality 3)  
+- `SLIDINGWINDOW:4:15`Scan the read with a 4-base wide sliding window,
+cutting when the average quality per base drops below 15  
+- `MINLEN:36` Drop reads below the 36 bases long
 
 ### FastQC
 
@@ -568,12 +568,13 @@ make sure you have removed them all.
     fastqc  HPA011703_F_trim_paired.fq.gz -o ./fastqc_results/
     fastqc  HPA011703_R_trim_paired.fq.gz -o ./fastqc_results/
 
-### BWA v 0.7.17
+### BWA
 
+v 0.7.17  
 No we map trimmed Illumina reads to our draft genome.  
 First we need to create an index assembly file.
 
-To index the draft genome HPA\_02\_racon.fasta
+To index the draft genome `HPA_02_racon.fasta`
 
     conda activate bwa
 
@@ -586,11 +587,12 @@ now map illumina reads to assembly
 
     bwa mem -t16 HPA_02_racon.fasta HPA011703_F_trim_paired.fq.gz HPA011703_R_trim_paired.fq.gz > HPA011703_bwa_aligned.sam
 
-### SamTools v 1.9
+### SamTools
 
-convert and sort .sam file to input into Pilon
+v 1.9  
+convert and sort `.sam` file to input into Pilon
 
-Convert .sam to .bam
+Convert `.sam` to `.bam`
 
     samtools view -Sb -@ 16 -O BAM -o HPA011703_bwa_aligned.bam HPA011703_bwa_aligned.sam
 
@@ -602,13 +604,12 @@ Index reference genome to optimize search
 
     samtools index -b -@ 30 HPA011703_bwa_aligned_sorted.bam
 
-Options:
-
-    -Sb     input format bam
-    -@      threads
-    -o      FILE  output file name
-    -O      output format (SAM, BAM, CRAM)
-    -b      output BAM
+Options:  
+- `-Sb` input format bam  
+- `-@` threads  
+- `-o` FILE output file name  
+- `-O` output format (SAM, BAM, CRAM)  
+- `-b` output BAM
 
 ### Pilon v1.23
 
@@ -697,8 +698,8 @@ Actinopterygii output: `cat short_summary_HPA_03_busco_actinop.txt`
 
 ## 2.2 POLISHING x4- Illumina Data
 
-*REMINDER* my last consensus sequence after 2x Nanopore(racon) + 1x
-illumina( pilon) data is HPA\_03\_pilon.fasta
+**REMINDER** my last consensus sequence after 2xRacon (Nanopore) +
+1xPilon (Illumina) data is `HPA_03_pilon.fasta`
 
 ### BWA
 
@@ -719,9 +720,9 @@ Now map illumina reads to assembly
 
 ### SamTools
 
-convert and sort .sam file to input into Pilon
+convert and sort `.sam` file to input into Pilon
 
-convert .sam to .bam
+convert `.sam` to `.bam`
 
     samtools view -Sb -@ 16 -O BAM -o HPA_03_pilon_bwa_aligned.bam HPA_03_pilon_bwa_aligned.sam
 
@@ -733,17 +734,16 @@ index reference genome to optimize search
 
     samtools index -b -@ 30 HPA_03_pilon_bwa_aligned_sorted.bam
 
-Options:
-
-    -Sb     input format bam
-    -@      threads
-    -o      FILE  output file name
-    -O      output format (SAM, BAM, CRAM)
-    -b      output BAM
+Options:  
+- `-Sb` input format bam  
+- `-@` threads  
+- `-o` FILE output file name  
+- `-O` output format (SAM, BAM, CRAM)  
+- `-b` output BAM
 
 ### Pilon
 
-v1.23
+v 1.23
 
 Polish (4th polish overall) REmember: the memory you need depends on
 your genome size. In general you should allocate 1Gb for every Mb. My
@@ -778,8 +778,9 @@ this can be run directly in the command line (5 seconds)
     N_count = 0
     Gaps = 0
 
-#### BUSCO 3.0.1
+#### BUSCO
 
+v 3.0.1  
 Assessing genome assembly and annotation completeness with Benchmarking
 Universal Single-Copy Orthologs
 
