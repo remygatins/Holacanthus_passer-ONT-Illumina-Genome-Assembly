@@ -1,4 +1,4 @@
-1. ONT & Illumina Genome Assembly
+ONT & Illumina Genome Assembly
 ================
 Remy Gatins
 Sept 06, 2021
