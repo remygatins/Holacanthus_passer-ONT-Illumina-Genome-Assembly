@@ -11,6 +11,7 @@ I hope you find this a useful resource.
 </p>
 
 As hybrid assemblies that combine long and short sequences become more common, there is a consistent ambiguity on the amount of coverage one needs from each sequencing technology. Both technologies are important during different steps of the assembly, however, should resources be focused more towards one technology rather than the other? In order to help others plan the amount of coverage they will need accordingly, we have assessed the BUSCO completeness using subsets of the raw sequencing data of the *H. passer* genome after the initial assembly and subsequently after each polishing step. Subset coverage was calculated using the the final *H. passer* genome size of 583 Mb.
+**NOTE:** Sequencing technologies and assembly pipelines continue to improve so this is only a snapshot of 
 
 <p align="center">
 <img src="images/Figure4_coverage_test.png" width="500"/>
