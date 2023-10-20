@@ -20,6 +20,6 @@ As hybrid assemblies that combine long and short sequences become more common, t
 Table showing the general summary of individual flow cells of Minion Nanopore sequencing data of *H. passer*
 
 <p align="center">
-<img src="images/MinION_cell_statistics.png" width="500"/>
+<img src="images/MinION_cell_statistics.png" width="1000"/>
 </p>
 
