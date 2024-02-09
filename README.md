@@ -24,7 +24,7 @@ Overall the goal of this page was to write a tutorial for my fellow labmates, ho
 **Figure 6.** Whole genome assembly pipeline using Oxford Nanopore and Illumina sequencing. Dashed orange lines indicate quality assessment checkpoints carried out during the assembly pipeline.
 
 Additional Resources:
-- [Dryad repository](https://datadryad.org/stash/dataset/doi:10.7291/D1X10B)
+- [Dryad repository](https://doi.org/10.7291/D1X10B)
 - [NCBI raw data repository](https://www.ncbi.nlm.nih.gov/bioproject/713824)
 
 
