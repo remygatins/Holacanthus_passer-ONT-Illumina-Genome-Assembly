@@ -14,9 +14,8 @@ Here you will find a step-through to the entire *Holacanthus passer* genome asse
 
 Overall the goal of this page was to write a tutorial for my fellow labmates, however, it is also useful for other early career scientists or beginners in bioinformatics to replicate some of these analyses. I am far from an expert programmer or bioinformatician &mdash; I spend a significant amount of time troubleshooting on google &mdash; so if anyone finds any problems with my code please let me know! =)
 
-Figures from the manuscript are numbered in this repository according to their number in the publication.
+*Figures from the manuscript are numbered in this repository according to their number in the publication.*
 
-I hope this is helpful to you.
 
 <p align="center">
 <img src="images/HPA_Genome_assembly_pipeline.png" width="1000"/>
@@ -24,7 +23,9 @@ I hope this is helpful to you.
 
 **Figure 6.** Whole genome assembly pipeline using Oxford Nanopore and Illumina sequencing. Dashed orange lines indicate quality assessment checkpoints carried out during the assembly pipeline.
 
-
+Additional Resources:
+- [Dryad repository](https://datadryad.org/stash/dataset/doi:10.7291/D1X10B)
+- [NCBI raw data repository](https://www.ncbi.nlm.nih.gov/bioproject/713824)
 
 
 
