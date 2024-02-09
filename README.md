@@ -1,11 +1,12 @@
 # Whole genome assembly of the King Angelfish (*Holacanthus passer*) gives insight into the evolution of marine fishes of the Tropical Eastern Pacific
-### (Gatins *et al* in )
+### Remy Gatins, Carlos F. Arias, Carlos Sánchez, Giacomo Bernardi, Luis F. De León
+### (Gatins *et al* accepted)
 
 <p align="center">
-<img src="images/Figure1_TEP_map_species.png" width="500"/>
+<img src="images/Figure1_TEP_map_species.png" width="700"/>
 </p>
 
-**Figure 1.** Pictures of an adult male (A) and a juvenile (B) King angelfish, Holacanthus passer. Males can be identified by their white pelvic fin. The blue outline on the map (C) shows the range distribution of H. passer across the Tropical Eastern Pacific. The red star indicates where the sample used for the genome assembly was collected from. Photo credits: Remy Gatins.
+  **Figure 1.** Pictures of an adult male (A) and a juvenile (B) King angelfish, Holacanthus passer. Males can be identified by their white pelvic fin. The blue outline on the map (C) shows the range distribution of H. passer across the Tropical    Eastern Pacific. The red star indicates where the sample used for the genome assembly was collected from. Photo credits: Remy Gatins.
 
 
 Here you will find a stepthrough to the entire *Holacanthus passer* genome assembly protocol we carried out using Oxford Nanopore and Illumina sequencing. The genome assembly pipeline is illustrated below. Other step by step methods used to assess and analyse data (e.g. GenomeScope and PSMC) are also shared. 
